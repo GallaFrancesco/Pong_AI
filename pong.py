@@ -108,16 +108,15 @@ def new_paddle(length, posY, posX):
     return paddlePanel
     
 
-def main(net, flag):
+def main(net, flag, keyup, keydown):
     stdscr=curses.initscr()
     curses.noecho()
     curses.cbreak()
     stdscr.clear()
     stdscr.nodelay(1)
-    try:
-        curses.start_color()
-    except:
-        pass
+    curses.start_color()
+    curses.use_default_colors ()
+    curses.init_pair (1, curses.COLOR_WHITE, -1)
     curses.curs_set(False) # Turn off the cursor, we won't be needing it.
 
     ball = {'x':0, 'y':0,                # A dict of attributes about the ball
@@ -163,7 +162,7 @@ def main(net, flag):
             else:
                 sleep(0.05)
         else:
-            update_paddle(paddlePanelLeft, paddleLeft, stdscr, 'r', 'w')
+            update_paddle(paddlePanelLeft, paddleLeft, stdscr,  keyup, keydown)
         stdscr.refresh() 
    
     paddlePanelLeft.hide()
