@@ -21,13 +21,14 @@ def update_ball(stdscr, ball, paddleLeft, paddleRight, flag):
     if (ball['y'] == 0 or ball['y'] == curses.LINES - 1):
         ball['dy'] = -ball['dy']
 
-    if (ball['x'] == paddleLeft['x']):
+    if (ball['x'] == paddleLeft['x']+1):
         if (ball['y'] in paddleLeft['y']):
             ball['dx'] = -ball['dx']
             paddleLeft['score'] += 1
         else:
             if flag == True:
                 ball['inPlay'] = 0
+                paddleRight['win'] = True
             else:
                 ball['dx'] = -ball['dx']
     elif (ball['x'] == paddleRight['x']-1):
@@ -36,6 +37,8 @@ def update_ball(stdscr, ball, paddleLeft, paddleRight, flag):
             paddleRight['score'] += 1
         else:
             ball['inPlay'] = 0
+            if flag == True:
+                paddleLeft['win'] = True
         
     if (ball['inPlay'] != 0):
         stdscr.addstr(ball['y'], ball['x'], 'O')
@@ -99,26 +102,37 @@ def draw_pad(padWin):
     for i in range(0, 5):
         padWin.addch(i, 0, '#')
 
-def new_paddle(length, posY, posX):    
+def new_paddle_panel(length, posY, posX):    
     padWin = curses.newwin(length, 1, posY, posX)
     padWin.timeout(0)
     draw_pad(padWin)
     paddlePanel = curses.panel.new_panel(padWin)
     paddlePanel.top()
     return paddlePanel
-    
 
-def main(net, flag, keyup, keydown):
+def init_curses():
     stdscr=curses.initscr()
     curses.noecho()
     curses.cbreak()
     stdscr.clear()
-    stdscr.nodelay(1)
+    # stdscr.nodelay(1)
     curses.start_color()
     curses.use_default_colors ()
     curses.init_pair (1, curses.COLOR_WHITE, -1)
+    curses.init_pair (2, curses.COLOR_RED, -1)
     curses.curs_set(False) # Turn off the cursor, we won't be needing it.
+    return stdscr
 
+def init_paddle(x,y):
+    paddle = {'x':0, 'y':[0, 0, 0], 'score':0, 'win':False}      # a dict of attributes about paddle
+    paddle['x'] = x                      # Starting x and y of the paddle
+    paddle['y'] = y 
+    return paddle 
+
+def main(net, flag, keyup, keydown, wins):
+    
+    stdscr = init_curses()
+    
     ball = {'x':0, 'y':0,                # A dict of attributes about the ball
             'dx':0, 'dy':0,
             'inPlay':0}
@@ -129,17 +143,17 @@ def main(net, flag, keyup, keydown):
     ball['dy'] = random.choice([-1, 1])
     ball['inPlay'] = 1                   # Status of game
     
-    paddleLeft = {'x':0, 'y':[0, 0, 0], 'score':0}      # a dict of attributes about paddle
-    paddleLeft['x'] = 0                      # Starting x and y of the paddle
-    paddleLeft['y'] = [curses.LINES // 2 + i for i in (2, 0, -2)]
-                                         # lowest to highest, visually
-    paddleRight = {'x':0, 'y':[0, 0, 0], 'score':0}      # a dict of attributes about paddle
-    paddleRight['x'] = curses.COLS - 2      # Starting x and y of the paddle
-    paddleRight['y'] = [curses.LINES // 2 + i for i in (2, 0, -2)]
-    
+    paddleLeft = init_paddle(1, [curses.LINES // 2 + i for i in (2, 0, -2)])
+    paddleRight = init_paddle(curses.COLS - 2, [curses.LINES // 2 + i for i in (2, 0, -2)])
+    # if flag: 
+        # stdscr.addstr( curses.COLS // 2-20, r, "Ready to play? Press a key to continue.", curses.color_pair(2))
+
+        # stdscr.getch()
     stdscr.addch(ball['y'], ball['x'], 'O')
-    paddlePanelLeft = new_paddle(6, curses.LINES // 2, 0)
-    paddlePanelRight = new_paddle(6, curses.LINES // 2, curses.COLS - 2)
+    
+    paddlePanelLeft = new_paddle_panel(6, curses.LINES // 2, paddleLeft['x'])
+    paddlePanelRight = new_paddle_panel(6, curses.LINES // 2, paddleRight['x'])
+    
     update_paddle(paddlePanelLeft, paddleLeft, stdscr, 'r', 'w')
     
     stdscr.refresh()
@@ -147,10 +161,12 @@ def main(net, flag, keyup, keydown):
     while ball['inPlay']:
         if not sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
             ball = update_ball(stdscr, ball, paddleLeft, paddleRight, flag)
-            mv = net_calc_paddle(net, paddleRight, ball)
             
+            mv = net_calc_paddle(net, paddleRight, ball)    
             stdscr.addstr(1, curses.COLS // 2 - 4, str(paddleLeft['score']) + ' ' + str(paddleRight['score']))
-            
+            stdscr.addstr(1, 3, str(wins[0]))
+            stdscr.addstr(1, curses.COLS - 3, str(wins[1]))
+
             if paddleRight['score'] == 30 and flag == False:
                 quit_curses(stdscr)
                 return paddleRight['score']
@@ -168,7 +184,11 @@ def main(net, flag, keyup, keydown):
     paddlePanelLeft.hide()
     paddlePanelRight.hide()
     quit_curses(stdscr)
-    return paddleRight['score']
+    if paddleRight['win']:
+        wins[1] += 1
+    elif paddleLeft['win']:
+        wins[0] += 1
+    return paddleRight['score'], wins 
 
     # stdscr.refresh()
     # # sleep(2)

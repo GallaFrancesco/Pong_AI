@@ -12,14 +12,16 @@ def eval_fitness(genomes):
     global ngen
     global keyup
     global keydown
+    wins = [0,0]
     ngen += 1
     flag = False
     if ngen > int (argv[1]):
         flag = True
+        input("Ready to play? Press ENTER to continue.\n")
     for g in genomes:
         start = time()
         net = nn.create_feed_forward_phenotype(g)
-        score = pong.main(net, flag, keyup, keydown)
+        score, wins = pong.main(net, flag, keyup, keydown, wins)
         g.fitness = (time() - start)*(score + 1)
 
 def main ():
